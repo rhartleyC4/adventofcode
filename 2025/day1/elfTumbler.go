@@ -8,12 +8,11 @@ import (
 type ElfTumbler struct {
 	zeroCount    int
 	currentIndex int
-	tumblerArray []int
 	tumblerSize  int
 }
 
 func (t *ElfTumbler) GetValue() int {
-	return t.tumblerArray[t.currentIndex]
+	return t.currentIndex
 }
 
 func (t *ElfTumbler) Adjust(adjustment string) error {
@@ -64,14 +63,9 @@ func NewElfTumbler(min, max int) *ElfTumbler {
 		panic("min > max")
 	}
 	size := max - min + 1
-	arr := make([]int, size)
-	for value := min; value <= max; value++ {
-		arr[value-min] = value
-	}
 	return &ElfTumbler{
 		zeroCount:    0,
 		currentIndex: size / 2,
-		tumblerArray: arr,
-		tumblerSize:  len(arr),
+		tumblerSize:  size,
 	}
 }
