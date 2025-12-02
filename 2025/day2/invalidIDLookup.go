@@ -26,20 +26,37 @@ func InvalidIDLookup(r string) []uint64 {
 	}
 	for i := start; i <= end; i++ {
 		candidate := fmt.Sprintf("%d", i)
-		if len(candidate)%2 != 0 {
+		candidateLength := len(candidate)
+		if candidateLength <= 1 {
 			continue
 		}
-		offset := len(candidate) / 2
-		invalidID := true
-		for i := 0; i < offset; i++ {
-			if candidate[i] != candidate[offset+i] {
-				invalidID = false
+		flagInvalid := false
+		for j := candidateLength / 2; j >= 1; j-- {
+			testLength := GCD(candidateLength, j)
+			parts := candidateLength / testLength
+			for k := 0; k < parts-1; k++ {
+				leftStart := k * testLength
+				leftEnd := leftStart + testLength
+				rightEnd := leftEnd + testLength
+				flagInvalid = candidate[leftStart:leftEnd] == candidate[leftEnd:rightEnd]
+				if !flagInvalid {
+					break
+				}
+			}
+			if flagInvalid {
 				break
 			}
 		}
-		if invalidID {
+		if flagInvalid {
 			ids = append(ids, i)
 		}
 	}
 	return ids
+}
+
+func GCD(a, b int) int {
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
 }
