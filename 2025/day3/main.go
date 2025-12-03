@@ -35,7 +35,7 @@ func main() {
 	buf := make([]byte, 0, 1024)
 	scanner.Buffer(buf, 1024*1024) // up to 1MB line
 
-	calculator := NewJoltageCalculator()
+	calculator := NewJoltageCalculator(12)
 	lineNum := 0
 
 	for scanner.Scan() {
