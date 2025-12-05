@@ -63,4 +63,5 @@ func main() {
 	}
 
 	log.Printf("Total fresh ingredients: %d\n", db.TotalFresh())
+	log.Printf("Total fresh candidates: %d\n", db.TotalConsideredFresh())
 }

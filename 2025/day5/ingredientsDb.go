@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -58,4 +59,23 @@ func (db *IngredientsDb) Reset() {
 	db.freshTable = make([]FreshRange, 0)
 	db.fresh = make([]int, 0)
 	db.spoiled = make([]int, 0)
+}
+
+func (db *IngredientsDb) TotalConsideredFresh() uint64 {
+	sort.SliceStable(db.freshTable, func(i, j int) bool {
+		return db.freshTable[i].Min < db.freshTable[j].Min
+	})
+	var total uint64
+	var previousMax uint64
+	for _, data := range db.freshTable {
+		if previousMax >= data.Min {
+			if data.Max > previousMax+1 {
+				total += (data.Max - (previousMax + 1)) + 1
+			}
+		} else {
+			total += (data.Max - data.Min) + 1
+		}
+		previousMax = data.Max
+	}
+	return total
 }

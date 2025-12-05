@@ -70,5 +70,11 @@ var _ = Describe("IngredientsDb", func() {
 				Ω(subject.TotalFresh()).Should(Equal(3))
 			})
 		})
+
+		Describe("TotalConsideredFresh", func() {
+			It("should give the correct number of possible fresh ingredients", func() {
+				Ω(subject.TotalConsideredFresh()).Should(Equal(uint64(14)))
+			})
+		})
 	})
 })
