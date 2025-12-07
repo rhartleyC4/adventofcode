@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strconv"
+	"math"
 	"strings"
 )
 
@@ -15,29 +15,19 @@ const (
 )
 
 type Problem struct {
-	operands []int64
+	operands [][]OperandPart
 	operator Operator
 }
 
-func (p *Problem) AddOperand(operand ...int64) {
+func (p *Problem) AddOperand(operand ...[]OperandPart) {
 	p.operands = append(p.operands, operand...)
 }
 
-func (p *Problem) AddOperator(operator Operator) error {
-	if !p.operatorSupported(operator) {
-		return fmt.Errorf("operator %v is not supported", operator)
+func (p *Problem) DigitSize() int {
+	if len(p.operands) == 0 {
+		panic(errors.New("no operands"))
 	}
-	p.operator = operator
-	return nil
-}
-
-func (p *Problem) operatorSupported(operator Operator) bool {
-	switch operator {
-	case Add, Multiply:
-		return true
-	default:
-		return false
-	}
+	return len(p.operands[0])
 }
 
 func (p *Problem) Calculate() (int64, error) {
@@ -49,14 +39,13 @@ func (p *Problem) Calculate() (int64, error) {
 	case Add:
 		var sum int64
 		for _, operand := range p.operands {
-			sum += operand
+			sum += p.getNumber(operand)
 		}
 		return sum, nil
 	case Multiply:
-		product := p.operands[0]
+		product := p.getNumber(p.operands[0])
 		for _, operand := range p.operands[1:] {
-
-			product *= operand
+			product *= p.getNumber(operand)
 		}
 		return product, nil
 	default:
@@ -64,65 +53,65 @@ func (p *Problem) Calculate() (int64, error) {
 	}
 }
 
-type LineInfo struct {
-	Operands  []int64
-	Operators []Operator
+func (p *Problem) getNumber(input []OperandPart) int64 {
+	digitCount := len(input)
+	number := int64(0)
+	for _, part := range input {
+		p := digitCount - part.Significance - 1
+		number += int64(part.Digit) * int64(math.Pow10(p))
+	}
+	return number
+}
+
+func NewProblem(operator Operator) *Problem {
+	return &Problem{
+		operator: operator,
+	}
+}
+
+func IsSupportedOperator(operator Operator) bool {
+	switch operator {
+	case Add, Multiply:
+		return true
+	default:
+		return false
+	}
+}
+
+type OperandPart struct {
+	Significance int
+	Digit        int
 }
 
 type Homework struct {
-	problems []Problem
+	problems [][]uint8
 }
 
-func (h *Homework) AddLine(line string) (*LineInfo, error) {
-	fields := strings.Fields(line)
-	if len(fields) == 0 {
-		return nil, fmt.Errorf("invalid line: %q", line)
-	}
-
-	result := &LineInfo{}
-	firstOperand, err := strconv.ParseInt(fields[0], 10, 64)
-	if err == nil {
-		result.Operands = []int64{firstOperand}
-		for i, operand := range fields[1:] {
-			value, err := strconv.ParseInt(operand, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("invalid operand in col %d: %q", i+2, operand)
-			}
-			result.Operands = append(result.Operands, value)
-		}
-	} else {
-		for i, operator := range fields {
-			if len(operator) != 1 {
-				return nil, fmt.Errorf("invalid operand in col %d: %q", i+1, operator)
-			}
-			result.Operators = append(result.Operators, Operator(operator[0]))
-		}
+func (h *Homework) AddLine(line string) error {
+	if len(line) == 0 {
+		return fmt.Errorf("invalid line: %q", line)
 	}
 
 	if h.problems == nil {
-		h.problems = make([]Problem, len(fields))
+		h.problems = make([][]uint8, 0)
 	}
 
-	if len(h.problems) != len(fields) {
-		return nil, fmt.Errorf("invalid number of operands/operators: %d != %d", len(h.problems), len(fields))
-	}
-
-	if result.Operands != nil {
-		for i, operand := range result.Operands {
-			h.problems[i].AddOperand(operand)
+	characters := make([]uint8, len(line))
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		if IsSupportedOperator(Operator(c)) || c == ' ' {
+			characters[i] = c
+			continue
+		}
+		if c >= '0' && c <= '9' {
+			characters[i] = c - '0'
+		} else {
+			return fmt.Errorf("invalid entry at col: %d", i+1)
 		}
 	}
 
-	if result.Operators != nil {
-		for i, operand := range result.Operators {
-			err := h.problems[i].AddOperator(operand)
-			if err != nil {
-				return nil, fmt.Errorf("invalid operand in col %d: %q", i+1, operand)
-			}
-		}
-	}
-
-	return result, nil
+	h.problems = append(h.problems, characters)
+	return nil
 }
 
 func (h *Homework) Solve() (int64, error) {
@@ -130,12 +119,55 @@ func (h *Homework) Solve() (int64, error) {
 		return 0, errors.New("no problems found")
 	}
 	var total int64
-	for i, problem := range h.problems {
-		value, err := problem.Calculate()
-		if err != nil {
-			return 0, fmt.Errorf("failed to calculate col %d: %v", i+1, err)
+	operators, err := h.getOperators()
+	if err != nil {
+		return 0, err
+	}
+	allOperands := h.problems[:len(h.problems)-1]
+	currentNumber := 0
+	for _, operator := range operators {
+		problem := NewProblem(operator)
+		for {
+			var operands []OperandPart
+			for _, operand := range allOperands {
+				if currentNumber == len(operand) {
+					break
+				}
+				p := operand[currentNumber]
+				if p == ' ' {
+					continue
+				}
+				d := OperandPart{
+					Significance: len(operands),
+					Digit:        int(p),
+				}
+				operands = append(operands, d)
+			}
+			currentNumber++
+			if len(operands) == 0 {
+				// can calculate
+				value, err := problem.Calculate()
+				if err != nil {
+					return 0, err
+				}
+				total += value
+				break
+			} else {
+				problem.AddOperand(operands)
+			}
 		}
-		total += value
 	}
 	return total, nil
+}
+
+func (h *Homework) getOperators() ([]Operator, error) {
+	operators := strings.Fields(string(h.problems[len(h.problems)-1]))
+	result := make([]Operator, len(operators))
+	for i, o := range operators {
+		if len(o) != 1 {
+			return nil, fmt.Errorf("invalid operator: %v", o)
+		}
+		result[i] = Operator(o[0])
+	}
+	return result, nil
 }

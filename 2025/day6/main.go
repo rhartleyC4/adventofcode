@@ -39,7 +39,7 @@ func main() {
 	for scanner.Scan() {
 		lineNum++
 		raw := scanner.Text()
-		_, err = homework.AddLine(raw)
+		err = homework.AddLine(raw)
 		if err != nil {
 			log.Fatalf("failed to add line %d: %v", lineNum, err)
 		}

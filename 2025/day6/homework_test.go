@@ -9,10 +9,9 @@ import (
 var _ = Describe("Problem", func() {
 	Describe("Calculate", func() {
 		DescribeTable("test cases",
-			func(operands []int64, operator main.Operator, expectedValue int64, shouldError bool) {
-				subject := main.Problem{}
+			func(operands [][]main.OperandPart, operator main.Operator, expectedValue int64, shouldError bool) {
+				subject := main.NewProblem(operator)
 				subject.AddOperand(operands...)
-				_ = subject.AddOperator(operator)
 
 				result, err := subject.Calculate()
 
@@ -23,64 +22,64 @@ var _ = Describe("Problem", func() {
 				}
 				Ω(result).Should(Equal(expectedValue))
 			},
-			Entry("add two 1s", []int64{1, 1}, main.Add, int64(2), false),
-			Entry("adds multiple numbers", []int64{8, 2, 1, 4, 100}, main.Add, int64(115), false),
-			Entry("multiplies two 1s", []int64{1, 1}, main.Multiply, int64(1), false),
-			Entry("multiplies multiple numbers", []int64{5, 5, 10}, main.Multiply, int64(250), false),
-			Entry("errors when there are no operands", []int64{}, main.Add, int64(0), true),
-			Entry("errors with unsupported operator", []int64{1, 1}, main.Operator(5), int64(0), true),
+			Entry("add two 1s",
+				[][]main.OperandPart{
+					{{0, 1}}, // 1
+					{{0, 1}}, // 1
+				}, main.Add, int64(2), false),
+			Entry("adds multiple numbers",
+				[][]main.OperandPart{
+					{{0, 0}, {1, 0}, {2, 8}}, // 8
+					{{0, 0}, {1, 0}, {2, 2}}, // 2
+					{{0, 0}, {1, 1}, {2, 0}}, // 10
+					{{0, 0}, {1, 0}, {2, 4}}, // 4
+					{{0, 1}, {1, 0}, {2, 0}}, // 100
+				}, main.Add, int64(124), false),
+			Entry("multiplies two 1s",
+				[][]main.OperandPart{
+					{{0, 1}}, // 1
+					{{0, 1}}, // 1
+				}, main.Multiply, int64(1), false),
+			Entry("multiplies multiple numbers",
+				[][]main.OperandPart{
+					{{0, 0}, {1, 5}}, // 5
+					{{0, 0}, {1, 5}}, // 5
+					{{0, 1}, {1, 0}}, // 10
+				}, main.Multiply, int64(250), false),
+			Entry("errors when there are no operands",
+				[][]main.OperandPart{}, main.Add, int64(0), true),
+			Entry("errors with unsupported operator",
+				[][]main.OperandPart{
+					{{0, 1}}, // 1
+					{{0, 1}}, // 1
+				}, main.Operator(5), int64(0), true),
 		)
-
-		Describe("AddOperator", func() {
-			DescribeTable("adding operator", func(operator main.Operator, shouldError bool) {
-				subject := main.Problem{}
-				if shouldError {
-					Ω(subject.AddOperator(operator)).Should(HaveOccurred())
-				} else {
-					Ω(subject.AddOperator(operator)).Should(Succeed())
-				}
-			},
-				Entry("supports Add", main.Add, false),
-				Entry("supports Multiply", main.Multiply, false),
-				Entry("does not support A", main.Operator('A'), true))
-		})
 	})
 })
 
 var _ = Describe("Homework", func() {
 	Describe("AddLine", func() {
 		DescribeTable("called with valid input",
-			func(line string, operands []int64, operators []main.Operator, expectError bool) {
+			func(line string, expectError bool) {
 				subject := main.Homework{}
 
-				result, err := subject.AddLine(line)
+				err := subject.AddLine(line)
 
 				if expectError {
 					Ω(err).Should(HaveOccurred())
-					Ω(result).Should(BeNil())
 				} else {
 					Ω(err).ShouldNot(HaveOccurred())
-					Ω(result.Operators).Should(Equal(operators))
-					Ω(result.Operands).Should(Equal(operands))
 				}
 			},
-			Entry(`"123 328  51 64 " succeeds"`, "123 328  51 64 ", []int64{123, 328, 51, 64}, nil, false),
-			Entry(`" 45 64  387 23 " succeeds`, " 45 64  387 23 ", []int64{45, 64, 387, 23}, nil, false),
-			Entry(`"  6 98  215 314" succeeds`, "  6 98  215 314", []int64{6, 98, 215, 314}, nil, false),
-			Entry(`"*   +   *   +  " succeeds`, "*   +   *   +  ", nil, []main.Operator{'*', '+', '*', '+'}, false),
-			Entry(`"*   15  *   +  " fails`, "*   15  *   +  ", nil, nil, true),
-			Entry(`"  2 BC    1   D" fails`, "A   BC    1   D", nil, nil, true),
-			Entry(`"Hello`, "Hello", nil, nil, true),
-			Entry(`"H e l l o`, "H e l l o", nil, nil, true),
-			Entry(`"" fails`, "", nil, nil, true),
+			Entry(`"123 328  51 64 " succeeds`, "123 328  51 64 ", false),
+			Entry(`" 45 64  387 23 " succeeds`, " 45 64  387 23 ", false),
+			Entry(`"  6 98  215 314" succeeds`, "  6 98  215 314", false),
+			Entry(`"*   +   *   +  " succeeds`, "*   +   *   +  ", false),
+			Entry(`"  2 BC    1   D" fails`, "A   BC    1   D", true),
+			Entry(`"Hello`, "Hello", true),
+			Entry(`"H e l l o`, "H e l l o", true),
+			Entry(`"" fails`, "", true),
 		)
-
-		It("fails if you had another line that does not match the number of the first line", func() {
-			subject := main.Homework{}
-			Ω(subject.AddLine("1 2 3")).Error().ShouldNot(HaveOccurred())
-
-			Ω(subject.AddLine("1 2")).Error().Should(HaveOccurred())
-		})
 	})
 
 	Describe("Solve", func() {
@@ -94,7 +93,7 @@ var _ = Describe("Homework", func() {
 			result, err := subject.Solve()
 
 			Ω(err).ShouldNot(HaveOccurred())
-			Ω(result).Should(Equal(int64(4277556)))
+			Ω(result).Should(Equal(int64(3263827)))
 		})
 
 		It("fails when there are no operands", func() {
